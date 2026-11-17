@@ -1,0 +1,8 @@
+# Serve solo se un giorno userai la riga di comando; con la dashboard di Cloudflare non serve.
+name = "monticano-post-ai"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+[ai]
+binding = "AI"
+[vars]
+ALLOWED_ORIGIN = "https://sarri04.github.io"

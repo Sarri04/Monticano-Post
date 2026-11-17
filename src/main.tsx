@@ -1,0 +1,17 @@
+import { createRoot } from 'react-dom/client';
+import '@fontsource/anton/400.css';
+import '@fontsource/bebas-neue/400.css';
+import '@fontsource/oswald/700.css';
+import '@fontsource/cinzel/700.css';
+import '@fontsource/orbitron/800.css';
+import '@fontsource/permanent-marker/400.css';
+import '@fontsource/black-ops-one/400.css';
+import '@fontsource/press-start-2p/400.css';
+import './styles.css';
+import { App } from './ui/App';
+import { ensureSeed } from './core/db';
+import { registerSW } from 'virtual:pwa-register';
+
+registerSW({ immediate: true });
+navigator.storage?.persist?.().catch(() => {});
+ensureSeed().then(() => createRoot(document.getElementById('root')!).render(<App />));
