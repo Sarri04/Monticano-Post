@@ -25,8 +25,13 @@ export interface TextLayer extends LayerBase {
   color: string; color2?: string; // color2 => gradiente verticale
   stroke: string; strokeWidth: number; glow: string; glowBlur: number;
   shadow: boolean; letterSpacing: number; lineHeight: number; maxWidth: number; align: 'center' | 'left' | 'right'; upper: boolean;
+  depth?: number; depthColor?: string; // effetto 3D: spessore in px e colore
+  plate?: Plate; // targa/banner a tema dietro al testo
 }
-export interface LogoLayer extends LayerBase { kind: 'logo'; logoId: string; size: number; glow: string; glowBlur: number; shadow: boolean; }
+export interface Plate { fill: string; border: string; borderWidth: number; opacity: number; padX: number; padY: number; radius: number; }
+export type FrameShape = 'circle' | 'rounded' | 'shield';
+export interface Frame { shape: FrameShape; fill: string; border: string; borderWidth: number; opacity: number; pad: number; }
+export interface LogoLayer extends LayerBase { kind: 'logo'; logoId: string; size: number; glow: string; glowBlur: number; shadow: boolean; frame?: Frame; }
 export type Layer = TextLayer | LogoLayer;
 
 export interface Version { id: string; createdAt: number; seed: number; prompt: string; bg: Blob; }

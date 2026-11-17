@@ -17,7 +17,7 @@ export function Archive() {
   const file = useRef<HTMLInputElement>(null);
   const logoUrl = (id?: string) => { const l = logos.find(x => x.id === id); return l ? URL.createObjectURL(l.blob) : ''; };
 
-  const pick = async (f: File) => { try { setPending({ name: f.name.replace(/\.[^.]+$/, ''), canvas: await blobToCanvas(f) }); } catch { toast('Immagine non leggibile.'); } };
+  const pick = async (f: File) => { try { window.scrollTo({ top: 0, behavior: 'smooth' }); setPending({ name: f.name.replace(/\.[^.]+$/, ''), canvas: await blobToCanvas(f) }); } catch { toast('Immagine non leggibile.'); } };
   const cut = () => { if (!pending) return; const c = document.createElement('canvas'); c.width = pending.canvas.width; c.height = pending.canvas.height; const x = c.getContext('2d')!; x.drawImage(pending.canvas, 0, 0); const d = x.getImageData(0, 0, c.width, c.height); const n = removeUniformBackground(d.data, c.width, c.height); if (!n) { toast('Nessuno sfondo uniforme riconosciuto: il logo resta originale.'); return; } x.putImageData(d, 0, 0); setPending({ ...pending, cut: c }); };
   const saveLogo = async (useCut: boolean) => { if (!pending) return; const id = newId('logo'); await put('logos', { id, name: pending.name, blob: await canvasBlob(useCut && pending.cut ? pending.cut : pending.canvas) }); if (team) setTeam({ ...team, logoId: id }); setPending(null); await refresh(); toast('Logo salvato.'); };
   const saveTeam = async () => { if (!team || !team.name.trim()) return; await put('teams', { ...team, name: team.name.trim() }); setTeam(null); await refresh(); };

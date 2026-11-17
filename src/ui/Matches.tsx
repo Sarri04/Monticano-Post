@@ -5,6 +5,7 @@ import type { Match } from '../core/types';
 import { deleteMatch, emptyMatch, getAll, put } from '../core/db';
 import { newId } from '../core/layout';
 import { outcomeFor, outcomeLabel } from '../core/outcome';
+import { fileToPngBlob, saveTeamLogo } from '../core/logoUpload';
 
 export function Matches({ nav }: { nav: Nav }) {
   const { matches, categories, teams, refresh, toast } = useStore();
@@ -38,6 +39,19 @@ export function Matches({ nav }: { nav: Nav }) {
   </>);
 }
 
+function LogoPick({ name, categoryId }: { name: string; categoryId: string }) {
+  const { teams, logos, refresh, toast } = useStore();
+  const t = teams.find(x => x.name.toLowerCase() === name.trim().toLowerCase());
+  const l = logos.find(x => x.id === t?.logoId);
+  const url = l ? URL.createObjectURL(l.blob) : '';
+  const onFile = async (f: File) => { try { await saveTeamLogo(name, categoryId, await fileToPngBlob(f)); await refresh(); toast('Logo salvato per ' + name.trim()); } catch { toast('Immagine non leggibile.'); } };
+  if (!name.trim()) return null;
+  return (<div className="row" style={{ margin: '6px 0 2px' }}>
+    {url ? <img className="logo-sm" src={url} alt={'Logo ' + name} /> : <div className="logo-sm" />}
+    <label className="b s sm" style={{ margin: 0, cursor: 'pointer' }}>{url ? 'Cambia logo' : '＋ Aggiungi logo'}<input type="file" accept="image/*" hidden data-testid={'logo-' + name} onChange={e => { const f = e.target.files?.[0]; if (f) void onFile(f); e.target.value = ''; }} /></label>
+    {!url && <span className="mut">nessun logo</span>}</div>);
+}
+
 function MatchForm({ m: init, onClose }: { m: Match; onClose: () => void }) {
   const { categories, teams, refresh, toast } = useStore();
   const [m, setM] = useState<Match>(init);
@@ -64,8 +78,8 @@ function MatchForm({ m: init, onClose }: { m: Match; onClose: () => void }) {
     {cat && <div className="mut">Template {cat.template === 'A' ? 'A – prima squadra (la partita è il titolo)' : 'B – il titolo è la categoria'}</div>}
     <label>Competizione</label><input value={m.competition} onChange={e => set('competition', e.target.value)} placeholder="Campionato, Coppa Italia…" />
     <label>Giornata</label><input value={m.round} onChange={e => set('round', e.target.value)} placeholder="es. 5" inputMode="numeric" />
-    <label>Squadra di casa</label><input list="teamlist" value={m.homeName} onChange={e => pickTeam('home', e.target.value)} />
-    <label>Squadra ospite</label><input list="teamlist" value={m.awayName} onChange={e => pickTeam('away', e.target.value)} />
+    <label>Squadra di casa</label><input list="teamlist" value={m.homeName} onChange={e => pickTeam('home', e.target.value)} /><LogoPick name={m.homeName} categoryId={m.categoryId} />
+    <label>Squadra ospite</label><input list="teamlist" value={m.awayName} onChange={e => pickTeam('away', e.target.value)} /><LogoPick name={m.awayName} categoryId={m.categoryId} />
     <datalist id="teamlist">{teams.map(t => <option key={t.id} value={t.name} />)}</datalist>
     {m.extraTeams.map((t, i) => <div key={i}><label>Squadra {i + 3}</label><div className="row"><input list="teamlist" value={t} onChange={e => set('extraTeams', m.extraTeams.map((x, j) => (j === i ? e.target.value : x)))} /><button className="b d sm" onClick={() => set('extraTeams', m.extraTeams.filter((_, j) => j !== i))}>✕</button></div></div>)}
     <button className="b s sm" style={{ marginTop: 8 }} onClick={() => set('extraTeams', [...m.extraTeams, ''])}>＋ Aggiungi squadra (triangolare / torneo)</button>

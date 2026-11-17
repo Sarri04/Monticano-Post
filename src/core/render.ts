@@ -6,7 +6,7 @@ export type Img = CanvasImageSource & { width: number; height: number };
 export type LogoImages = Map<string, Img>;
 type Ctx = CanvasRenderingContext2D;
 
-export const FONT_LIST = ['Anton', 'Bebas Neue', 'Oswald', 'Cinzel', 'Orbitron', 'Permanent Marker', 'Black Ops One', 'Press Start 2P'];
+export const FONT_LIST = ['Anton', 'Bebas Neue', 'Oswald', 'Cinzel', 'Orbitron', 'Permanent Marker', 'Black Ops One', 'Press Start 2P', 'Luckiest Guy', 'Pirata One', 'Bangers'];
 
 export async function loadFonts(layers: Layer[]) {
   const fonts = new Set(layers.filter((l): l is TextLayer => l.kind === 'text').map(l => `${l.weight} 40px "${l.font}"`));
@@ -38,9 +38,20 @@ export function layerBounds(ctx: Ctx, l: Layer, logos: LogoImages) {
   return l.kind === 'text' ? textBounds(ctx, l) : logoBounds(l, logos.get(l.logoId));
 }
 
+function rr(ctx: Ctx, x: number, y: number, w: number, h: number, r: number) { const k = Math.min(r, w / 2, h / 2); ctx.beginPath(); ctx.moveTo(x + k, y); ctx.arcTo(x + w, y, x + w, y + h, k); ctx.arcTo(x + w, y + h, x, y + h, k); ctx.arcTo(x, y + h, x, y, k); ctx.arcTo(x, y, x + w, y, k); ctx.closePath(); }
+function drawPlate(ctx: Ctx, pl: NonNullable<TextLayer['plate']>, w: number, h: number) {
+  const pw = w + pl.padX * 2, ph = h + pl.padY * 2;
+  ctx.save(); ctx.globalAlpha = pl.opacity; ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 8;
+  const g = ctx.createLinearGradient(0, -ph / 2, 0, ph / 2); g.addColorStop(0, pl.fill); g.addColorStop(1, '#000000');
+  rr(ctx, -pw / 2, -ph / 2, pw, ph, pl.radius); ctx.fillStyle = pl.fill; ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.globalAlpha = pl.opacity * 0.45; ctx.fillStyle = g; ctx.fill();
+  ctx.globalAlpha = 1; if (pl.borderWidth > 0) { ctx.lineWidth = pl.borderWidth; ctx.strokeStyle = pl.border; rr(ctx, -pw / 2, -ph / 2, pw, ph, pl.radius); ctx.stroke(); }
+  ctx.restore();
+}
 function drawText(ctx: Ctx, l: TextLayer) {
   const { w, h, lines, lh } = textBounds(ctx, l);
   ctx.save(); ctx.translate(l.x, l.y); ctx.rotate((l.rotation * Math.PI) / 180);
+  if (l.plate) drawPlate(ctx, l.plate, w, h);
   setFont(ctx, l); ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.miterLimit = 2; ctx.textAlign = 'left';
   const grad = l.color2 ? (() => { const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, l.color); g.addColorStop(1, l.color2); return g; })() : l.color;
   const y0 = -((lines.length - 1) * lh) / 2;
@@ -52,17 +63,40 @@ function drawText(ctx: Ctx, l: TextLayer) {
   if (l.glowBlur > 0 && l.glow) { ctx.shadowColor = l.glow; ctx.shadowBlur = l.glowBlur; ctx.fillStyle = l.glow; pass((s, x, y) => ctx.fillText(s, x, y)); ctx.shadowBlur = l.glowBlur * 1.8; pass((s, x, y) => ctx.fillText(s, x, y)); }
   if (l.shadow) { ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 14; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = Math.max(4, l.size * 0.05); }
   else { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
+  if (l.depth && l.depth > 0) { // estrusione 3D: copie sovrapposte verso il basso nel colore del tema
+    ctx.fillStyle = l.depthColor ?? l.stroke; ctx.strokeStyle = l.depthColor ?? l.stroke; ctx.lineWidth = l.strokeWidth * 2;
+    for (let d = l.depth; d > 0; d -= 2) { ctx.save(); ctx.translate(0, d); pass((s, x, y) => { if (l.strokeWidth > 0) ctx.strokeText(s, x, y); ctx.fillText(s, x, y); }); ctx.restore(); }
+  }
   if (l.strokeWidth > 0) { ctx.lineWidth = l.strokeWidth * 2; ctx.strokeStyle = l.stroke; pass((s, x, y) => ctx.strokeText(s, x, y)); }
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
   ctx.fillStyle = grad; pass((s, x, y) => ctx.fillText(s, x, y));
   ctx.restore();
 }
 
+function framePath(ctx: Ctx, shape: string, w: number, h: number) {
+  ctx.beginPath();
+  if (shape === 'circle') ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2);
+  else if (shape === 'shield') { ctx.moveTo(-w / 2, -h / 2); ctx.lineTo(w / 2, -h / 2); ctx.lineTo(w / 2, h * 0.12); ctx.quadraticCurveTo(w / 2, h * 0.38, 0, h / 2); ctx.quadraticCurveTo(-w / 2, h * 0.38, -w / 2, h * 0.12); ctx.closePath(); }
+  else { rr(ctx, -w / 2, -h / 2, w, h, Math.min(w, h) * 0.18); }
+}
+/** Cornice a tema dietro al logo: il logo resta intatto e sopra, la cornice lo fa sembrare parte della scena. */
+function drawFrame(ctx: Ctx, f: NonNullable<LogoLayer['frame']>, w: number, h: number, glow: string, glowBlur: number) {
+  const fw = w + f.pad * 2, fh = h + f.pad * 2;
+  ctx.save(); ctx.globalAlpha = f.opacity;
+  if (glowBlur > 0 && glow) { ctx.shadowColor = glow; ctx.shadowBlur = glowBlur; } else { ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10; }
+  framePath(ctx, f.shape, fw, fh); ctx.fillStyle = f.fill; ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  const g = ctx.createLinearGradient(0, -fh / 2, 0, fh / 2); g.addColorStop(0, 'rgba(255,255,255,.28)'); g.addColorStop(0.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,.35)');
+  framePath(ctx, f.shape, fw, fh); ctx.fillStyle = g; ctx.fill();
+  ctx.globalAlpha = 1; if (f.borderWidth > 0) { ctx.lineWidth = f.borderWidth; ctx.strokeStyle = f.border; framePath(ctx, f.shape, fw, fh); ctx.stroke(); }
+  ctx.restore();
+}
 /** Il logo è disegnato con le sue proporzioni originali: nessuna deformazione né ritocco dei pixel, solo luce/ombra attorno. */
 function drawLogo(ctx: Ctx, l: LogoLayer, img?: Img) {
   if (!img) return; const { w, h } = logoBounds(l, img);
   ctx.save(); ctx.translate(l.x, l.y); ctx.rotate((l.rotation * Math.PI) / 180);
-  if (l.glowBlur > 0 && l.glow) { ctx.shadowColor = l.glow; ctx.shadowBlur = l.glowBlur; ctx.drawImage(img, -w / 2, -h / 2, w, h); }
+  if (l.frame) drawFrame(ctx, l.frame, w, h, l.glow, l.glowBlur);
+  else if (l.glowBlur > 0 && l.glow) { ctx.shadowColor = l.glow; ctx.shadowBlur = l.glowBlur; ctx.drawImage(img, -w / 2, -h / 2, w, h); }
   if (l.shadow) { ctx.shadowColor = 'rgba(0,0,0,.7)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 12; } else { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; }
   ctx.drawImage(img, -w / 2, -h / 2, w, h); ctx.restore();
 }

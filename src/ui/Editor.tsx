@@ -154,6 +154,10 @@ function TextInspector({ l, patch }: { l: TextLayer; patch: (p: Partial<TextLaye
     <label>Bagliore: {l.glowBlur}</label><input type="range" min={0} max={90} value={l.glowBlur} onChange={e => patch({ glowBlur: +e.target.value })} />
     <label>Spaziatura lettere: {l.letterSpacing}</label><input type="range" min={0} max={30} value={l.letterSpacing} onChange={e => patch({ letterSpacing: +e.target.value })} />
     <div className="row wrap"><label><input type="checkbox" checked={l.shadow} onChange={e => patch({ shadow: e.target.checked })} /> Ombra</label><label><input type="checkbox" checked={l.upper} onChange={e => patch({ upper: e.target.checked })} /> Maiuscolo</label><label><input type="checkbox" checked={!!l.color2} onChange={e => patch({ color2: e.target.checked ? l.stroke : undefined })} /> Sfumatura</label></div>
+    <label>Effetto 3D: {l.depth ?? 0}</label><input type="range" min={0} max={40} value={l.depth ?? 0} onChange={e => patch({ depth: +e.target.value, depthColor: l.depthColor ?? l.stroke })} />
+    {!!l.depth && <><label>Colore 3D</label><input type="color" value={l.depthColor ?? l.stroke} onChange={e => patch({ depthColor: e.target.value })} /></>}
+    <label><input type="checkbox" checked={!!l.plate} onChange={e => patch({ plate: e.target.checked ? { fill: '#10203f', border: l.color, borderWidth: 5, opacity: 0.86, padX: 28, padY: 8, radius: 22 } : undefined })} /> Targa dietro il testo</label>
+    {l.plate && <div className="row"><div className="grow"><label>Targa</label><input type="color" value={l.plate.fill} onChange={e => patch({ plate: { ...l.plate!, fill: e.target.value } })} /></div><div className="grow"><label>Bordo</label><input type="color" value={l.plate.border} onChange={e => patch({ plate: { ...l.plate!, border: e.target.value } })} /></div><div className="grow"><label>Trasp.</label><input type="range" min={30} max={100} value={Math.round(l.plate.opacity * 100)} onChange={e => patch({ plate: { ...l.plate!, opacity: +e.target.value / 100 } })} /></div></div>}
   </>);
 }
 function LogoInspector({ l, logos, patch }: { l: LogoLayer; logos: { id: string; name: string }[]; patch: (p: Partial<LogoLayer>) => void }) {
@@ -163,6 +167,9 @@ function LogoInspector({ l, logos, patch }: { l: LogoLayer; logos: { id: string;
     <label>Bagliore: {l.glowBlur}</label><input type="range" min={0} max={90} value={l.glowBlur} onChange={e => patch({ glowBlur: +e.target.value })} />
     <label>Colore bagliore</label><input type="color" value={l.glow} onChange={e => patch({ glow: e.target.value })} />
     <label><input type="checkbox" checked={l.shadow} onChange={e => patch({ shadow: e.target.checked })} /> Ombra</label>
+    <label><input type="checkbox" checked={!!l.frame} onChange={e => patch({ frame: e.target.checked ? { shape: 'rounded', fill: '#10203f', border: '#ffffff', borderWidth: 8, opacity: 0.9, pad: Math.round(l.size * 0.08) } : undefined })} /> Cornice dietro al logo</label>
+    {l.frame && <><div className="row"><div className="grow"><label>Forma</label><select value={l.frame.shape} onChange={e => patch({ frame: { ...l.frame!, shape: e.target.value as 'circle' | 'rounded' | 'shield' } })}><option value="circle">Tonda</option><option value="rounded">Arrotondata</option><option value="shield">Scudo</option></select></div><div className="grow"><label>Fondo</label><input type="color" value={l.frame.fill} onChange={e => patch({ frame: { ...l.frame!, fill: e.target.value } })} /></div><div className="grow"><label>Bordo</label><input type="color" value={l.frame.border} onChange={e => patch({ frame: { ...l.frame!, border: e.target.value } })} /></div></div>
+      <label>Trasparenza cornice: {Math.round(l.frame.opacity * 100)}%</label><input type="range" min={0} max={100} value={Math.round(l.frame.opacity * 100)} onChange={e => patch({ frame: { ...l.frame!, opacity: +e.target.value / 100 } })} /></>}
     <p className="mut">Il logo mantiene sempre le proporzioni originali.</p>
   </>);
 }
