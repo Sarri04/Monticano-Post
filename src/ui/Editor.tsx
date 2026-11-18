@@ -77,7 +77,7 @@ export function Editor({ nav }: { nav: Nav }) {
     const prompt = integrated ? buildPosterPrompt({ match, cat, kind: proj.kind, theme: proj.theme, outcome: o, seed, hasHomeLogo: !!refs?.hasHome, hasAwayLogo: !!refs?.hasAway, extra })
       : buildBackgroundPrompt({ theme: proj.theme, template: proj.kind === 'result' ? 'R' : cat.template, outcome: o, seed, extra });
     try {
-      const b = await generateBackground(settings, prompt, seed, undefined, { refs: integrated ? refs!.refs : [] });
+      const b = await generateBackground(settings, prompt, seed, undefined, integrated ? { refs: refs!.refs } : undefined);
       const np = await save({ bgBlob: b, seed, prompt, versions: [...proj.versions, { id: newId('v'), createdAt: Date.now(), seed, prompt, bg: b }] }); if (np) setChat(c => [...c, { me: false, t: 'Fatto: nuovo sfondo generato. Testi e loghi non sono stati toccati.' }]);
     } catch (e) { const m = (e as AiError).message; setChat(c => [...c, { me: false, t: m }]); toast(m); } finally { setBusy(''); }
   };

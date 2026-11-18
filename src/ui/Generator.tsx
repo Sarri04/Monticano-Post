@@ -43,7 +43,7 @@ export function Generator({ nav }: { nav: Nav }) {
     if (integrated) p.layers = p.layers.map(l => ({ ...l, visible: false })); // i livelli restano disponibili ma nascosti: l'AI ha già disegnato testi e stemmi
     p.description = buildDescription(match, cat, kind, templates ?? undefined);
     try {
-      const bg = await generateBackground(settings, prompt, seed, abort.current.signal, { refs: integrated ? refs!.refs : [] });
+      const bg = await generateBackground(settings, prompt, seed, abort.current.signal, integrated ? { refs: refs!.refs } : undefined);
       p.bgBlob = bg; p.versions.push({ id: 'v1', createdAt: Date.now(), seed, prompt, bg });
     } catch (e) {
       if ((e as Error).name === 'AbortError') { setBusy(false); return; }
