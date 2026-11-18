@@ -45,7 +45,7 @@ export default {
         const r = new Response(fd);
         out = await env.AI.run(model, { multipart: { body: r.body, contentType: r.headers.get('content-type') } });
       } else {
-        const p = { prompt, width: 1024, height: 1280, num_steps: 25, guidance: 4.5 };
+        const cl = (v, a, b, d) => { v = Math.round(+v / 64) * 64; return v >= a && v <= b ? v : d; }; const p = { prompt, width: cl(body.w, 512, 1024, 768), height: cl(body.h, 512, 1280, 960), num_steps: Math.min(30, Math.max(8, Math.trunc(+body.steps) || 20)), guidance: 4.5 };
         if (seed !== undefined) p.seed = seed;
         out = await env.AI.run(model, p);
       }

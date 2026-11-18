@@ -7,7 +7,7 @@ import { FONT_LIST, drawProject, exportPng, hitTest, loadFonts, type LogoImages 
 import { parseChat } from '../core/chat';
 import { buildBackgroundPrompt } from '../core/prompt';
 import { buildDescription } from '../core/description';
-import { generateBackground, AiError } from '../core/ai';
+import { generateBackground, AiError, lastModelUsed } from '../core/ai';
 import { buildPosterPrompt, logoRefs } from '../core/poster';
 import { outcomeFor } from '../core/outcome';
 import { newId } from '../core/layout';
@@ -78,7 +78,7 @@ export function Editor({ nav }: { nav: Nav }) {
       : buildBackgroundPrompt({ theme: proj.theme, template: proj.kind === 'result' ? 'R' : cat.template, outcome: o, seed, extra });
     try {
       const b = await generateBackground(settings, prompt, seed, undefined, integrated ? { refs: refs!.refs } : undefined);
-      const np = await save({ bgBlob: b, seed, prompt, versions: [...proj.versions, { id: newId('v'), createdAt: Date.now(), seed, prompt, bg: b }] }); if (np) setChat(c => [...c, { me: false, t: 'Fatto: nuovo sfondo generato. Testi e loghi non sono stati toccati.' }]);
+      const np = await save({ bgBlob: b, seed, prompt, versions: [...proj.versions, { id: newId('v'), createdAt: Date.now(), seed, prompt, bg: b }] }); if (np) setChat(c => [...c, { me: false, t: 'Fatto: nuovo sfondo generato' + (lastModelUsed === 'schnell' && settings.engine !== 'puter' && (settings.cfModel ?? 'lucid') !== 'schnell' ? ' (con la bozza veloce: la quota di Lucid per oggi è finita)' : '') + '. Testi e loghi non sono stati toccati.' }]);
     } catch (e) { const m = (e as AiError).message; setChat(c => [...c, { me: false, t: m }]); toast(m); } finally { setBusy(''); }
   };
 

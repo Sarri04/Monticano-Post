@@ -5,7 +5,7 @@ import { THEMES, randomTheme } from '../core/themes';
 import { buildLayers, newProject } from '../core/layout';
 import { buildBackgroundPrompt } from '../core/prompt';
 import { buildDescription } from '../core/description';
-import { generateBackground, AiError } from '../core/ai';
+import { generateBackground, AiError, lastModelUsed } from '../core/ai';
 import { buildPosterPrompt, logoRefs } from '../core/poster';
 import { outcomeFor } from '../core/outcome';
 import { pushTheme, put } from '../core/db';
@@ -45,6 +45,7 @@ export function Generator({ nav }: { nav: Nav }) {
     try {
       const bg = await generateBackground(settings, prompt, seed, abort.current.signal, integrated ? { refs: refs!.refs } : undefined);
       p.bgBlob = bg; p.versions.push({ id: 'v1', createdAt: Date.now(), seed, prompt, bg });
+      if (settings.engine !== 'puter' && lastModelUsed === 'schnell' && (settings.cfModel ?? 'lucid') !== 'schnell') toast('Quota giornaliera di Lucid finita: ho usato la bozza veloce (qualità più semplice). Lucid torna all’1:00.');
     } catch (e) {
       if ((e as Error).name === 'AbortError') { setBusy(false); return; }
       const ae = e as AiError;
