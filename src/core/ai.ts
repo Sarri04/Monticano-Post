@@ -1,9 +1,12 @@
 import type { Settings } from './types';
 
-export class AiError extends Error { constructor(msg: string, public code: 'not-configured' | 'quota' | 'network' | 'auth' | 'server') { super(msg); } }
+import { AiError } from './aiError';
+import { puterGenerate } from './puter';
+export { AiError };
 
 /** Chiede l'immagine di sfondo al proxy (Cloudflare Worker). La chiave del servizio AI resta sul Worker, mai nell'app. */
 export async function generateBackground(s: Settings, prompt: string, seed: number, signal?: AbortSignal, poster?: { refs: string[] }): Promise<Blob> {
+  if (s.engine === 'puter') return puterGenerate(prompt, poster?.refs ?? [], s.puterModel || 'openai/gpt-image-2.6-flare', s.puterQuality || 'medium', signal);
   if (!s.workerUrl.trim()) throw new AiError("Servizio AI non configurato: inserisci l'indirizzo del Worker in Impostazioni.", 'not-configured');
   let r: Response;
   try {

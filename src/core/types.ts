@@ -40,6 +40,6 @@ export interface Project {
   layers: Layer[]; bgBlob?: Blob; versions: Version[]; prompt: string; seed: number;
   description: string; createdAt: number; updatedAt: number;
 }
-export interface Settings { workerUrl: string; workerToken: string; }
+export interface Settings { workerUrl: string; workerToken: string; engine?: 'puter' | 'cloudflare'; puterModel?: string; puterQuality?: string; }
 export const W = 1080;
 export const H = 1350;

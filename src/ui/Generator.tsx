@@ -21,6 +21,8 @@ export function Generator({ nav }: { nav: Nav }) {
   const abort = useRef<AbortController | null>(null);
   const active = matches.filter(m => !m.archived);
   const match = matches.find(m => m.id === matchId);
+  const puter = settings.engine === 'puter';
+  useEffect(() => { setStyle(puter ? 'integrated' : 'layers'); }, [puter]);
   useEffect(() => { if (match && !theme) setTheme(match.theme); }, [matchId]); // eslint-disable-line
   useEffect(() => { if (!match?.result && kind === 'result') setKind('announce'); }, [match, kind]);
 
@@ -46,9 +48,10 @@ export function Generator({ nav }: { nav: Nav }) {
     } catch (e) {
       if ((e as Error).name === 'AbortError') { setBusy(false); return; }
       const ae = e as AiError;
-      if (ae.code === 'not-configured' || ae.code === 'quota' || ae.code === 'network') toast(`${ae.message} Uso lo sfondo di riserva (non generato dall'AI).`);
-      if (integrated && (ae.code === 'not-configured' || ae.code === 'quota' || ae.code === 'network')) { p.mode = 'layers'; p.layers = p.layers.map(l => ({ ...l, visible: true })); }
-      else { setErr(ae.message); setBusy(false); return; }
+      if (ae.code === 'not-configured' || ae.code === 'quota' || ae.code === 'network') {
+        toast(`${ae.message} Uso lo sfondo di riserva (non generato dall'AI).`);
+        if (integrated) { p.mode = 'layers'; p.layers = p.layers.map(l => ({ ...l, visible: true })); } // senza AI i testi vanno disegnati dall'app
+      } else { setErr(ae.message); setBusy(false); return; }
     }
     await put('matches', { ...match, theme: t }); await pushTheme(t); await put('projects', p); await refresh(); setBusy(false);
     nav.go('gen', { projectId: p.id });
@@ -63,7 +66,7 @@ export function Generator({ nav }: { nav: Nav }) {
       <label>Tipo di grafica</label>
       <select value={kind} onChange={e => setKind(e.target.value as ProjectKind)}><option value="announce">Annuncio partita</option><option value="result" disabled={!match.result}>Risultato finale{!match.result ? ' (inserisci prima il risultato)' : ''}</option></select>
       <label>Stile</label>
-      <select value={style} onChange={e => setStyle(e.target.value as 'integrated' | 'layers')}><option value="layers">Consigliata – scena AI + testi e loghi esatti</option><option value="integrated">Sperimentale – l'AI disegna anche testi e stemmi</option></select>
+      <select value={style} onChange={e => setStyle(e.target.value as 'integrated' | 'layers')}><option value="layers">{puter ? 'Scena AI + testi e loghi esatti (precisa)' : 'Consigliata – scena AI + testi e loghi esatti'}</option><option value="integrated">{puter ? "Integrata – l'AI disegna tutto, come ChatGPT (consigliata)" : "Sperimentale – l'AI disegna anche testi e stemmi"}</option></select>
       <p className="mut">{style === 'integrated' ? "L'AI scrive titolo e barra info dentro l'immagine, molto fusi col tema, ma nei test sbaglia spesso le lettere e ridisegna gli stemmi in modo diverso. Controlla bene prima di pubblicare e rigenera finché è giusto." : 'La scena nel tema è generata dall’AI; nomi, date e loghi sono livelli esatti e modificabili, senza errori di scrittura.'}</p>
       <label>Tema (film o videogioco)</label>
       <input list="themes" value={theme} onChange={e => setTheme(e.target.value)} placeholder="Scrivi un titolo o scegline uno" />
@@ -72,7 +75,7 @@ export function Generator({ nav }: { nav: Nav }) {
       {recent.length > 0 && <><label>Usati di recente</label><div>{recent.slice(0, 12).map(t => <button key={t} className="pill" style={{ color: 'inherit' }} onClick={() => setTheme(t)}>{t}</button>)}</div></>}
       <div className="row" style={{ marginTop: 16 }}><button className="b grow" disabled={busy} onClick={go}>{busy ? <><span className="spin" /> Generazione in corso…</> : '✨ Genera'}</button>{busy && <button className="b s" onClick={() => abort.current?.abort()}>Stop</button>}</div>
       {err && <p className="err">{err}</p>}
-      {!settings.workerUrl && <p className="mut">Servizio AI non configurato: la grafica userà uno sfondo di riserva. Configuralo in Impostazioni.</p>}
+      {!settings.workerUrl && !puter && <p className="mut">Servizio AI non configurato: la grafica userà uno sfondo di riserva. Configuralo in Impostazioni.</p>}
     </>}
   </>);
 }
