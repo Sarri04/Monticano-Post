@@ -37,6 +37,12 @@ export function SettingsScreen() {
     </>}
     {(s.engine ?? 'cloudflare') === 'cloudflare' && <>
     <label>Indirizzo del Worker Cloudflare</label><input value={s.workerUrl} onChange={e => setS({ ...s, workerUrl: e.target.value })} placeholder="https://monticano-post-ai.tuonome.workers.dev" autoCapitalize="none" />
+    <label>Modello grafico</label>
+    <select value={s.cfModel ?? 'lucid'} onChange={e => setS({ ...s, cfModel: e.target.value })}>
+      <option value="lucid">Lucid Origin (consigliato, ~8 s)</option>
+      <option value="schnell">FLUX schnell (veloce, più semplice)</option>
+      <option value="phoenix">Phoenix (simile a Lucid, lento ~2 min)</option>
+    </select>
     <label>Codice di accesso (APP_TOKEN del Worker)</label><input value={s.workerToken} onChange={e => setS({ ...s, workerToken: e.target.value })} autoCapitalize="none" />
     <p className="mut">Il codice è conservato solo su questo telefono. La chiave del servizio AI non è mai nell'app.</p>
     <div className="row"><button className="b grow" onClick={async () => { await saveSettings(s); await refresh(); toast('Impostazioni salvate.'); }}>Salva</button><button className="b s" disabled={!s.workerUrl} onClick={check}>Verifica</button></div>

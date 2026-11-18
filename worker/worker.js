@@ -1,41 +1,65 @@
-// Proxy gratuito per la generazione degli sfondi: Cloudflare Worker + Workers AI (FLUX.1 schnell).
-// Variabili da impostare nella dashboard del Worker:
-//   ALLOWED_ORIGIN  = https://sarri04.github.io        (obbligatoria: solo la tua app può chiamarlo)
-//   APP_TOKEN       = una parola lunga a caso            (consigliata: la stessa va inserita nell'app)
-// Binding richiesto: "AI" (Workers AI). Nessuna chiave API da custodire: il binding è interno a Cloudflare.
-const MODEL = '@cf/black-forest-labs/flux-1-schnell';
-
+// Proxy gratuito per la generazione delle grafiche: Cloudflare Worker + Workers AI.
+// Variabili: ALLOWED_ORIGIN (https://sarri04.github.io), APP_TOKEN (codice scelto da te). Binding: "AI".
+// Modelli (campo "model" nel body): schnell (default), klein, phoenix, lucid, flux2dev.
+const M = {
+  schnell: '@cf/black-forest-labs/flux-1-schnell',
+  klein: '@cf/black-forest-labs/flux-2-klein-4b',
+  flux2dev: '@cf/black-forest-labs/flux-2-dev',
+  phoenix: '@cf/leonardo/phoenix-1.0',
+  lucid: '@cf/leonardo/lucid-origin',
+};
 const cors = (env, req) => {
-  const origin = req.headers.get('Origin') || '';
-  const ok = env.ALLOWED_ORIGIN && origin === env.ALLOWED_ORIGIN;
-  return { 'Access-Control-Allow-Origin': ok ? origin : 'null', 'Access-Control-Allow-Headers': 'content-type,x-app-token', 'Access-Control-Allow-Methods': 'POST,GET,OPTIONS', 'Vary': 'Origin' };
+  const o = req.headers.get('Origin') || '';
+  const ok = env.ALLOWED_ORIGIN && o === env.ALLOWED_ORIGIN;
+  return { 'Access-Control-Allow-Origin': ok ? o : 'null', 'Access-Control-Allow-Headers': 'content-type,x-app-token', 'Access-Control-Allow-Methods': 'POST,GET,OPTIONS', Vary: 'Origin' };
 };
 const json = (obj, status, h) => new Response(JSON.stringify(obj), { status, headers: { ...h, 'content-type': 'application/json' } });
+const dataToBlob = async (u) => { const r = await fetch(u); return new Uint8Array(await r.arrayBuffer()); };
+const sniff = (b) => (b[0] === 0x89 && b[1] === 0x50 ? 'image/png' : 'image/jpeg');
+const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 export default {
   async fetch(req, env) {
     const h = cors(env, req);
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: h });
     const url = new URL(req.url);
-    if (url.pathname === '/health') return json({ ok: true, model: MODEL }, 200, h);
+    if (url.pathname === '/health') return json({ ok: true, models: Object.keys(M), poster: true }, 200, h);
     if (url.pathname !== '/image' || req.method !== 'POST') return json({ error: 'not found' }, 404, h);
     if (!env.ALLOWED_ORIGIN || req.headers.get('Origin') !== env.ALLOWED_ORIGIN) return json({ error: 'origin not allowed' }, 403, h);
     if (env.APP_TOKEN && req.headers.get('x-app-token') !== env.APP_TOKEN) return json({ error: 'bad token' }, 401, h);
     let body; try { body = await req.json(); } catch { return json({ error: 'invalid json' }, 400, h); }
-    const prompt = String(body.prompt || '').slice(0, 1800);
+    const prompt = String(body.prompt || '').slice(0, 3500);
     if (prompt.length < 10) return json({ error: 'prompt too short' }, 400, h);
+    const key = body.mode === 'poster' && !body.model ? 'klein' : (M[body.model] ? body.model : 'schnell');
+    const model = M[key];
+    const seed = Number.isFinite(+body.seed) ? Math.abs(Math.trunc(+body.seed)) % 4294967295 : undefined;
     try {
-      const out = await env.AI.run(MODEL, { prompt, steps: 6 });
-      const b64 = out && (out.image || out.result?.image);
-      if (!b64) return json({ error: 'no image in model response' }, 502, h);
-      const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      const isPng = bytes[0] === 0x89 && bytes[1] === 0x50;
-      return new Response(bytes, { status: 200, headers: { ...h, 'content-type': isPng ? 'image/png' : 'image/jpeg', 'cache-control': 'no-store' } });
+      let out;
+      if (key === 'schnell') {
+        out = await env.AI.run(model, { prompt: prompt.slice(0, 2000), steps: 6 });
+      } else if (key === 'klein' || key === 'flux2dev') {
+        const fd = new FormData();
+        fd.append('prompt', prompt); fd.append('width', '1024'); fd.append('height', '1280');
+        const refs = Array.isArray(body.refs) ? body.refs.slice(0, 4) : [];
+        for (let i = 0; i < refs.length; i++) fd.append('input_image_' + i, new Blob([await dataToBlob(refs[i])], { type: 'image/png' }), 'r' + i + '.png');
+        const r = new Response(fd);
+        out = await env.AI.run(model, { multipart: { body: r.body, contentType: r.headers.get('content-type') } });
+      } else {
+        const p = { prompt, width: 1024, height: 1280, num_steps: 25, guidance: 4.5 };
+        if (seed !== undefined) p.seed = seed;
+        out = await env.AI.run(model, p);
+      }
+      let bytes;
+      if (out && typeof out === 'object' && (out.image || out.result?.image)) bytes = fromB64(out.image || out.result.image);
+      else if (out instanceof ReadableStream) bytes = new Uint8Array(await new Response(out).arrayBuffer());
+      else if (out instanceof Response) bytes = new Uint8Array(await out.arrayBuffer());
+      else if (out instanceof ArrayBuffer || ArrayBuffer.isView(out)) bytes = new Uint8Array(out.buffer || out);
+      if (!bytes || bytes.length < 100) return json({ error: 'no image in model response' }, 502, h);
+      return new Response(bytes, { status: 200, headers: { ...h, 'content-type': sniff(bytes), 'cache-control': 'no-store', 'x-model': key } });
     } catch (e) {
       const msg = String((e && e.message) || e);
-      // superamento della quota gratuita giornaliera di Workers AI
       if (/limit|quota|capacity|10000|neurons/i.test(msg)) return json({ error: 'quota', detail: msg.slice(0, 200) }, 429, h);
-      return json({ error: 'ai error', detail: msg.slice(0, 200) }, 502, h);
+      return json({ error: 'ai error', detail: msg.slice(0, 300) }, 502, h);
     }
-  }
+  },
 };
