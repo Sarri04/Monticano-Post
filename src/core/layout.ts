@@ -31,8 +31,8 @@ function text(over: TOver, st: St): TextLayer {
   };
 }
 function frameFor(st: St, size: number): Frame { return { shape: st.frame, fill: st.plateFill, border: st.plateBorder, borderWidth: Math.max(6, Math.round(size / 36)), opacity: 0.9, pad: Math.round(size * 0.08) }; }
-function logo(role: string, name: string, logoId: string, x: number, y: number, size: number, st: St): LogoLayer {
-  return { id: newId('l'), kind: 'logo', name, role, logoId, x, y, size, rotation: 0, visible: true, glow: st.glow, glowBlur: 30, shadow: true, frame: frameFor(st, size) };
+function logo(role: string, name: string, logoId: string, x: number, y: number, size: number, st: St, framed = true): LogoLayer {
+  return { id: newId('l'), kind: 'logo', name, role, logoId, x, y, size, rotation: 0, visible: true, glow: st.glow, glowBlur: 30, shadow: true, ...(framed ? { frame: frameFor(st, size) } : {}) };
 }
 const plate = (st: St, padX: number, padY: number) => ({ fill: st.plateFill, border: st.plateBorder, borderWidth: 5, opacity: 0.86, padX, padY, radius: 22 });
 const d3 = (st: St, size: number) => ({ depth: Math.max(6, Math.min(20, Math.round(size * 0.055))), depthColor: st.depth });
@@ -77,16 +77,17 @@ export function buildLayers(inp: LayoutInput): Layer[] {
   }
 
   // ---------- TEMPLATE A: titolo = partita ----------
+  // La scena AI lascia un banner vuoto in alto, due scudi vuoti nella parte bassa e una barra in fondo: i livelli vi si appoggiano sopra.
   if (cat.template === 'A') {
     const title = `${m.homeName}\nVS\n${m.awayName}`;
-    L.push(text({ name: 'Titolo partita', role: 'title', text: title, x: W / 2, y: hasHomeLogo || hasAwayLogo ? 480 : 560, size: fz(title, 150, 960), maxWidth: 960, strokeWidth: 10, glowBlur: 40, lineHeight: 1.0, ...d3(st, 150) }, st));
-    if (hasHomeLogo) L.push(logo('logo-home', 'Logo casa', inp.homeTeam!.logoId!, 260, 925, 290, st));
-    if (hasAwayLogo) L.push(logo('logo-away', 'Logo ospite', inp.awayTeam!.logoId!, 820, 925, 290, st));
+    L.push(text({ name: 'Titolo partita', role: 'title', text: title, x: W / 2, y: 600, size: fz(title, 150, 960), maxWidth: 960, strokeWidth: 10, glowBlur: 40, lineHeight: 1.0, ...d3(st, 150) }, st));
+    if (hasHomeLogo) L.push(logo('logo-home', 'Logo casa', inp.homeTeam!.logoId!, 215, 1055, 240, st, false));
+    if (hasAwayLogo) L.push(logo('logo-away', 'Logo ospite', inp.awayTeam!.logoId!, 865, 1055, 240, st, false));
     const head = [cat.name, m.competition && m.competition.toLowerCase() !== cat.name.toLowerCase() ? m.competition : ''].filter(Boolean).join(' · ');
-    L.push(small({ name: 'Competizione', role: 'competition', text: head, x: W / 2, y: 90 }, fz(head, 54, 940)));
-    if (m.round) L.push(small({ name: 'Giornata', role: 'round', text: ordinalRound(m.round), x: W / 2, y: 160 }, 44));
-    L.push(small({ name: 'Data e ora', role: 'datetime', plate: plate(st, 28, 8), text: infoLine(m), x: W / 2, y: 1160 }, fz(infoLine(m), 52, 980)));
-    if (m.venue) L.push(small({ name: 'Luogo', role: 'venue', plate: plate(st, 28, 8), text: m.venue, x: W / 2, y: 1245, font: 'Oswald', weight: 700 }, fz(m.venue, 42, 980, 24, 0.45)));
+    L.push(small({ name: 'Competizione', role: 'competition', text: head, x: W / 2, y: 168 }, fz(head, 46, 760)));
+    if (m.round) L.push(small({ name: 'Giornata', role: 'round', text: ordinalRound(m.round), x: W / 2, y: 226 }, 38));
+    L.push(small({ name: 'Data e ora', role: 'datetime', text: infoLine(m), plate: plate(st, 28, 8), x: W / 2, y: 1222 }, fz(infoLine(m), 48, 980)));
+    if (m.venue) L.push(small({ name: 'Luogo', role: 'venue', text: m.venue, x: W / 2, y: 1292, font: 'Oswald', weight: 700 }, fz(m.venue, 44, 900, 24, 0.45)));
     return L;
   }
 
