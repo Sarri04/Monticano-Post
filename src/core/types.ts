@@ -36,7 +36,7 @@ export type Layer = TextLayer | LogoLayer;
 
 export interface Version { id: string; createdAt: number; seed: number; prompt: string; bg: Blob; }
 export interface Project {
-  id: string; matchId: string; kind: ProjectKind; theme: string;
+  id: string; matchId: string; kind: ProjectKind; theme: string; mode?: 'integrated' | 'layers';
   layers: Layer[]; bgBlob?: Blob; versions: Version[]; prompt: string; seed: number;
   description: string; createdAt: number; updatedAt: number;
 }

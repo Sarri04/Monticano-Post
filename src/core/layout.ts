@@ -56,7 +56,7 @@ export function buildLayers(inp: LayoutInput): Layer[] {
   // ---------- RISULTATO (template C) ----------
   if (kind === 'result') {
     const r = m.result ?? { home: 0, away: 0, scorers: '', assists: '', notes: '' };
-    const head = [cat.name, m.competition].filter(Boolean).join(' · ');
+    const head = [cat.name, m.competition && m.competition.toLowerCase() !== cat.name.toLowerCase() ? m.competition : ''].filter(Boolean).join(' · ');
     L.push(small({ name: 'Categoria', role: 'category', text: head, x: W / 2, y: 90 }, fz(head, 54, 940)));
     if (m.round) L.push(small({ name: 'Giornata', role: 'round', text: ordinalRound(m.round), x: W / 2, y: 160 }, 40));
     L.push(text({ name: 'Risultato', role: 'score', text: `${r.home}-${r.away}`, x: W / 2, y: 560, size: 380, strokeWidth: 14, glowBlur: 50, letterSpacing: 6, maxWidth: 1000, ...d3(st, 380) }, st));
@@ -82,7 +82,7 @@ export function buildLayers(inp: LayoutInput): Layer[] {
     L.push(text({ name: 'Titolo partita', role: 'title', text: title, x: W / 2, y: hasHomeLogo || hasAwayLogo ? 480 : 560, size: fz(title, 150, 960), maxWidth: 960, strokeWidth: 10, glowBlur: 40, lineHeight: 1.0, ...d3(st, 150) }, st));
     if (hasHomeLogo) L.push(logo('logo-home', 'Logo casa', inp.homeTeam!.logoId!, 260, 925, 290, st));
     if (hasAwayLogo) L.push(logo('logo-away', 'Logo ospite', inp.awayTeam!.logoId!, 820, 925, 290, st));
-    const head = [cat.name, m.competition].filter(Boolean).join(' · ');
+    const head = [cat.name, m.competition && m.competition.toLowerCase() !== cat.name.toLowerCase() ? m.competition : ''].filter(Boolean).join(' · ');
     L.push(small({ name: 'Competizione', role: 'competition', text: head, x: W / 2, y: 90 }, fz(head, 54, 940)));
     if (m.round) L.push(small({ name: 'Giornata', role: 'round', text: ordinalRound(m.round), x: W / 2, y: 160 }, 44));
     L.push(small({ name: 'Data e ora', role: 'datetime', plate: plate(st, 28, 8), text: infoLine(m), x: W / 2, y: 1160 }, fz(infoLine(m), 52, 980)));

@@ -118,8 +118,8 @@ function drawGrade(ctx: Ctx, theme: string) {
   const v = ctx.createRadialGradient(W / 2, H / 2, 420, W / 2, H / 2, 960); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.45)'); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
 }
 
-export function drawProject(ctx: Ctx, p: Pick<Project, 'layers' | 'theme'>, bg: Img | null, logos: LogoImages, opts: { selectedId?: string | null } = {}) {
-  ctx.clearRect(0, 0, W, H); drawBackground(ctx, bg, p.theme); drawGrade(ctx, p.theme);
+export function drawProject(ctx: Ctx, p: Pick<Project, 'layers' | 'theme' | 'mode'>, bg: Img | null, logos: LogoImages, opts: { selectedId?: string | null } = {}) {
+  ctx.clearRect(0, 0, W, H); drawBackground(ctx, bg, p.theme); if (p.mode !== 'integrated') drawGrade(ctx, p.theme);
   for (const l of p.layers) { if (!l.visible) continue; if (l.kind === 'text') drawText(ctx, l); else drawLogo(ctx, l, logos.get(l.logoId)); }
   if (opts.selectedId) {
     const l = p.layers.find(x => x.id === opts.selectedId); if (l && l.visible) {
@@ -139,7 +139,7 @@ export function hitTest(ctx: Ctx, layers: Layer[], logos: LogoImages, px: number
   return null;
 }
 
-export async function exportPng(p: Pick<Project, 'layers' | 'theme'>, bg: Blob | null, logoBlobs: Map<string, Blob>): Promise<Blob> {
+export async function exportPng(p: Pick<Project, 'layers' | 'theme' | 'mode'>, bg: Blob | null, logoBlobs: Map<string, Blob>): Promise<Blob> {
   await loadFonts(p.layers);
   const c = document.createElement('canvas'); c.width = W; c.height = H; const ctx = c.getContext('2d')!;
   const bgImg = bg ? await createImageBitmap(bg) : null; const logos: LogoImages = new Map();

@@ -8,7 +8,7 @@ const MOOD: Record<Outcome, string> = {
   loss: 'dramatic, intense and melancholic mood, darker tones, respectful and not offensive',
   draw: 'balanced, tense face-off mood with two opposing light colors'
 };
-const NEG = 'no text, no letters, no numbers, no watermark, no logo, no captions, no recognizable real people faces, no extra logos or emblems';
+const NEG = 'no text anywhere, no letters, no numbers, no watermark, no logo, no captions, no recognizable real people faces, no extra logos or emblems';
 
 export interface PromptOptions { theme: string; template: TemplateKind | 'R'; outcome?: Outcome | null; seed: number; extra?: string; sceneOverride?: string; }
 
@@ -23,8 +23,8 @@ export function buildBackgroundPrompt(o: PromptOptions): string {
     `Color palette: ${st.palette}`,
     `${shot}, ${time}`,
     o.template === 'R'
-      ? 'one dominant epic focal point in the center, the whole scene reacting to it, clear calm area in the upper third and in the bottom band'
-      : 'symmetrical face-off composition: two opposing sides, left and right, each with iconic elements of the theme, a glowing emblematic object between them in the center; keep the middle-lower area and the bottom band calm and uncluttered, like a stage prepared for two team crests and an info bar',
+      ? 'one dominant epic focal point in the center of the scene, with a large empty clear space in the middle for a huge score number, and an empty horizontal bar at the bottom'
+      : 'symmetrical face-off composition: iconic elements of the theme on the left side and on the right side, a glowing emblematic object between them in the center. Leave these areas clean and empty, as a stage prepared for graphics: a wide empty ornate title banner at the top, two empty blank heraldic shields (no emblem inside) held by the left and right sides in the lower-middle, and an empty horizontal info bar at the bottom',
     'vivid saturated colors, strong depth, dramatic professional lighting, ultra detailed, polished illustrated game-art look',
     'sports futsal atmosphere subtly hinted (indoor court light, football) without any text'
   ];

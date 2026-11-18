@@ -8,6 +8,7 @@ import { parseChat } from '../core/chat';
 import { buildBackgroundPrompt } from '../core/prompt';
 import { buildDescription } from '../core/description';
 import { generateBackground, AiError } from '../core/ai';
+import { buildPosterPrompt, logoRefs } from '../core/poster';
 import { outcomeFor } from '../core/outcome';
 import { newId } from '../core/layout';
 import { put, del } from '../core/db';
@@ -15,7 +16,7 @@ import { put, del } from '../core/db';
 type Tab = 'layers' | 'chat' | 'desc' | 'versions';
 
 export function Editor({ nav }: { nav: Nav }) {
-  const { projects, matches, categories, logos, settings, templates, refresh, toast } = useStore();
+  const { projects, matches, categories, teams, logos, settings, templates, refresh, toast } = useStore();
   const stored = projects.find(p => p.id === nav.projectId);
   const [proj, setProj] = useState<Project | null>(stored ?? null);
   const [layers, setLayers] = useState<Layer[]>(stored?.layers ?? []);
@@ -34,7 +35,7 @@ export function Editor({ nav }: { nav: Nav }) {
   useEffect(() => { if (stored && !proj) { setProj(stored); setLayers(stored.layers); } }, [stored, proj]);
   useEffect(() => { let off = false; (async () => { const b = proj?.bgBlob ? await createImageBitmap(proj.bgBlob) : null; if (!off) setBg(b); })(); return () => { off = true; }; }, [proj?.bgBlob]);
   useEffect(() => { let off = false; (async () => { const m: LogoImages = new Map(); for (const l of logos) m.set(l.id, await createImageBitmap(l.blob)); if (!off) setLogoImgs(m); })(); return () => { off = true; }; }, [logos]);
-  const redraw = useCallback(async () => { if (!canvas.current || !proj) return; await loadFonts(layers); drawProject(canvas.current.getContext('2d')!, { layers, theme: proj.theme }, bg, logoImgs, { selectedId: sel }); }, [layers, bg, logoImgs, sel, proj]);
+  const redraw = useCallback(async () => { if (!canvas.current || !proj) return; await loadFonts(layers); drawProject(canvas.current.getContext('2d')!, { layers, theme: proj.theme, mode: proj.mode }, bg, logoImgs, { selectedId: sel }); }, [layers, bg, logoImgs, sel, proj]);
   useEffect(() => { void redraw(); }, [redraw]);
 
   const commit = (next: Layer[], before = layers) => { setUndo(u => [...u.slice(-49), before]); setRedo([]); setLayers(next); setDirty(true); };
@@ -70,9 +71,13 @@ export function Editor({ nav }: { nav: Nav }) {
   const regenerate = async (extra: string, newSeed = true) => {
     if (!proj || !match || !cat) return; setBusy('Genero un nuovo sfondo…');
     const seed = newSeed ? Math.floor(Math.random() * 1e6) : proj.seed;
-    const prompt = buildBackgroundPrompt({ theme: proj.theme, template: proj.kind === 'result' ? 'R' : cat.template, outcome: proj.kind === 'result' ? outcomeFor(match) : null, seed, extra });
+    const integrated = proj.mode === 'integrated';
+    const refs = integrated ? await logoRefs(teams.find(x => x.id === match.homeTeamId), teams.find(x => x.id === match.awayTeamId), logos) : null;
+    const o = proj.kind === 'result' ? outcomeFor(match) : null;
+    const prompt = integrated ? buildPosterPrompt({ match, cat, kind: proj.kind, theme: proj.theme, outcome: o, seed, hasHomeLogo: !!refs?.hasHome, hasAwayLogo: !!refs?.hasAway, extra })
+      : buildBackgroundPrompt({ theme: proj.theme, template: proj.kind === 'result' ? 'R' : cat.template, outcome: o, seed, extra });
     try {
-      const b = await generateBackground(settings, prompt, seed);
+      const b = await generateBackground(settings, prompt, seed, undefined, { refs: integrated ? refs!.refs : [] });
       const np = await save({ bgBlob: b, seed, prompt, versions: [...proj.versions, { id: newId('v'), createdAt: Date.now(), seed, prompt, bg: b }] }); if (np) setChat(c => [...c, { me: false, t: 'Fatto: nuovo sfondo generato. Testi e loghi non sono stati toccati.' }]);
     } catch (e) { const m = (e as AiError).message; setChat(c => [...c, { me: false, t: m }]); toast(m); } finally { setBusy(''); }
   };
@@ -85,7 +90,7 @@ export function Editor({ nav }: { nav: Nav }) {
     else setChat(c => [...c, { me: false, t: a.summary }]);
   };
 
-  const makePng = async () => { const logoBlobs = new Map(logos.map(l => [l.id, l.blob] as const)); return exportPng({ layers, theme: proj!.theme }, proj!.bgBlob ?? null, logoBlobs); };
+  const makePng = async () => { const logoBlobs = new Map(logos.map(l => [l.id, l.blob] as const)); return exportPng({ layers, theme: proj!.theme, mode: proj!.mode }, proj!.bgBlob ?? null, logoBlobs); };
   const share = async () => {
     setBusy("Preparo l'immagine…"); try {
       const png = await makePng(); await save(); const file = new File([png], 'monticano-1080x1350.png', { type: 'image/png' });
