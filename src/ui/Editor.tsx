@@ -139,7 +139,7 @@ export function Editor({ nav }: { nav: Nav }) {
     </>}
 
     {tab === 'versions' && <>
-      <div className="row"><button className="b grow" disabled={!!busy} onClick={() => regenerate('')}>✨ Nuovo sfondo</button></div>
+      <div className="row"><button className="b grow" disabled={!!busy} onClick={() => regenerate('')}>✨ Nuovo sfondo</button><label className="b s" style={{ textAlign: 'center' }}>📁 Carica sfondo<input type="file" accept="image/*" hidden onChange={async e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await save({ bgBlob: f, versions: [...proj.versions, { id: newId('v'), createdAt: Date.now(), seed: proj.seed, prompt: '(immagine caricata)', bg: f }] }); }} /></label></div>
       <div className="row wrap" style={{ marginTop: 10 }}>{proj.versions.map(v => <img key={v.id} className={`thumb ${proj.bgBlob === v.bg ? 'on' : ''}`} src={url(v.bg)} onClick={async () => { await save({ bgBlob: v.bg, seed: v.seed, prompt: v.prompt }); }} />)}</div>
       {proj.versions.length === 0 && <p className="mut">Nessuna versione generata dall'AI.</p>}
       <button className="b d sm" style={{ marginTop: 14 }} onClick={async () => { if (confirm('Eliminare questo progetto?')) { await del('projects', proj.id); await refresh(); nav.go('matches', {}); } }}>Elimina progetto</button>

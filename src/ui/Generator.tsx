@@ -16,6 +16,7 @@ export function Generator({ nav }: { nav: Nav }) {
   const [matchId, setMatchId] = useState(nav.matchId ?? '');
   const [kind, setKind] = useState<ProjectKind>('announce');
   const [theme, setTheme] = useState('');
+  const [scene, setScene] = useState('');
   const [style, setStyle] = useState<'integrated' | 'layers'>('layers');
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
   const abort = useRef<AbortController | null>(null);
@@ -26,7 +27,7 @@ export function Generator({ nav }: { nav: Nav }) {
   useEffect(() => { if (match && !theme) setTheme(match.theme); }, [matchId]); // eslint-disable-line
   useEffect(() => { if (!match?.result && kind === 'result') setKind('announce'); }, [match, kind]);
 
-  const go = async () => {
+  const go = async (uploaded?: Blob) => {
     if (!match) return; const t = theme.trim() || randomTheme(recent).name; setTheme(t);
     const cat = categories.find(c => c.id === match.categoryId); if (!cat) return;
     setBusy(true); setErr(''); abort.current = new AbortController();
@@ -36,16 +37,18 @@ export function Generator({ nav }: { nav: Nav }) {
     const integrated = style === 'integrated';
     const refs = integrated ? await logoRefs(homeTeam, awayTeam, logos) : null;
     const prompt = integrated ? buildPosterPrompt({ match, cat, kind, theme: t, outcome: o, seed, hasHomeLogo: !!refs?.hasHome, hasAwayLogo: !!refs?.hasAway })
-      : buildBackgroundPrompt({ theme: t, template: kind === 'result' ? 'R' : cat.template, outcome: o, seed });
+      : buildBackgroundPrompt({ theme: t, template: kind === 'result' ? 'R' : cat.template, outcome: o, seed, sceneOverride: scene.trim() || undefined });
     const layers = buildLayers({ match, category: cat, kind, theme: t, homeTeam, awayTeam });
     const p = newProject({ ...match, theme: t }, kind, t, layers, seed, prompt);
     p.mode = integrated ? 'integrated' : 'layers';
     if (integrated) p.layers = p.layers.map(l => ({ ...l, visible: false })); // i livelli restano disponibili ma nascosti: l'AI ha già disegnato testi e stemmi
     p.description = buildDescription(match, cat, kind, templates ?? undefined);
     try {
+      if (uploaded) { p.mode = 'layers'; p.layers = p.layers.map(l => ({ ...l, visible: true })); p.bgBlob = uploaded; p.versions.push({ id: 'v1', createdAt: Date.now(), seed, prompt: '(immagine caricata)', bg: uploaded }); } else {
       const bg = await generateBackground(settings, prompt, seed, abort.current.signal, integrated ? { refs: refs!.refs } : undefined);
       p.bgBlob = bg; p.versions.push({ id: 'v1', createdAt: Date.now(), seed, prompt, bg });
       if (settings.engine !== 'puter' && lastModelUsed === 'schnell' && (settings.cfModel ?? 'lucid') !== 'schnell') toast('Quota giornaliera di Lucid finita: ho usato la bozza veloce (qualità più semplice). Lucid torna all’1:00.');
+      }
     } catch (e) {
       if ((e as Error).name === 'AbortError') { setBusy(false); return; }
       const ae = e as AiError;
@@ -74,7 +77,15 @@ export function Generator({ nav }: { nav: Nav }) {
       <datalist id="themes">{[...recent, ...THEMES.map(t => t.name)].map(t => <option key={t} value={t} />)}</datalist>
       <div className="row wrap" style={{ marginTop: 8 }}><button className="b s sm" onClick={() => setTheme(randomTheme([]).name)}>🎲 Tema casuale</button></div>
       {recent.length > 0 && <><label>Usati di recente</label><div>{recent.slice(0, 12).map(t => <button key={t} className="pill" style={{ color: 'inherit' }} onClick={() => setTheme(t)}>{t}</button>)}</div></>}
-      <div className="row" style={{ marginTop: 16 }}><button className="b grow" disabled={busy} onClick={go}>{busy ? <><span className="spin" /> Generazione in corso…</> : '✨ Genera'}</button>{busy && <button className="b s" onClick={() => abort.current?.abort()}>Stop</button>}</div>
+      <label>Descrivi la scena (facoltativo)</label>
+      <textarea style={{ minHeight: 70 }} value={scene} onChange={e => setScene(e.target.value)} placeholder='Es. stadio di calcio di notte, giocatori in azione, luci e grafica da videogioco calcistico moderno' />
+      <p className="mut">Se il tema è poco noto o un titolo recente, l’AI non lo conosce: descrivilo tu in poche parole, senza nomi di personaggi.</p>
+      <div className="row" style={{ marginTop: 16 }}><button className="b grow" disabled={busy} onClick={() => go()}>{busy ? <><span className="spin" /> Generazione in corso…</> : '✨ Genera'}</button>{busy && <button className="b s" onClick={() => abort.current?.abort()}>Stop</button>}</div>
+      <details style={{ marginTop: 16 }}><summary>Usa un’immagine fatta con ChatGPT</summary>
+        <p className="mut">1) Copia il prompt e incollalo in ChatGPT chiedendo l’immagine 4:5 verticale. 2) Carica qui l’immagine ottenuta: l’app ci mette sopra nomi, date e loghi esatti e puoi modificare tutto.</p>
+        <div className="row"><button className="b s" onClick={async () => { const cat = categories.find(c => c.id === match.categoryId); if (!cat) return; const pr = buildBackgroundPrompt({ theme: theme.trim() || 'film o videogioco a scelta', template: kind === 'result' ? 'R' : cat.template, outcome: kind === 'result' ? outcomeFor(match) : null, seed: 1, sceneOverride: scene.trim() || undefined }); try { await navigator.clipboard.writeText(pr + '. Formato verticale 4:5 (1080x1350).'); toast('Prompt copiato.'); } catch { toast('Copia non riuscita.'); } }}>📋 Copia prompt</button>
+        <label className="b grow" style={{ textAlign: 'center' }}>📁 Carica immagine<input type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) go(f); }} /></label></div>
+      </details>
       {err && <p className="err">{err}</p>}
       {!settings.workerUrl && !puter && <p className="mut">Servizio AI non configurato: la grafica userà uno sfondo di riserva. Configuralo in Impostazioni.</p>}
     </>}
